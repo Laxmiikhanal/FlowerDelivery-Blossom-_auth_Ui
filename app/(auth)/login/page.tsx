@@ -2,40 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { handleLogin } from "@/lib/actions/auth-action";
+import LoginForm from "../_components/LoginForm";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string>("");
-
-  const onLogin = () => {
-    setError("");
-
-    if (!email || !password) {
-      setError("Please enter email and password.");
-      return;
-    }
-
-    startTransition(async () => {
-      const res = await handleLogin({ email, password });
-
-      if (!res.success) {
-        setError(res.message || "Login failed");
-        return;
-      }
-
-      // Keep your routes
-      router.push("/home");
-      router.refresh();
-    });
-  };
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-pink-100 via-pink-50 to-pink-100">
       {/* soft background glow */}
@@ -80,33 +49,9 @@ export default function LoginPage() {
               Welcome back <span>🌸</span>
             </h1>
 
-            {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-
-            <div className="mt-10 space-y-5">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl bg-white/80 px-5 py-4 outline-none focus:ring-2 focus:ring-pink-400"
-              />
-
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-white/80 px-5 py-4 outline-none focus:ring-2 focus:ring-pink-400"
-              />
+            <div className="mt-10">
+              <LoginForm />
             </div>
-
-            <button
-              onClick={onLogin}
-              disabled={pending}
-              className="mt-8 w-full rounded-2xl bg-gradient-to-r from-pink-400 to-pink-500 py-4 font-semibold text-white shadow-[0_14px_30px_rgba(236,72,153,0.35)] hover:opacity-95 transition disabled:opacity-60"
-            >
-              {pending ? "Logging in..." : "Login"}
-            </button>
 
             <p className="mt-6 text-sm text-slate-600">
               Don’t have an account?{" "}

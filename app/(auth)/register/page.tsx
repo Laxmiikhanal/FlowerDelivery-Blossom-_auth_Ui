@@ -1,5 +1,4 @@
 "use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import RegisterForm from "../_components/RegisterForm";
@@ -17,7 +16,12 @@ export default function RegisterPage() {
       {/* NAVBAR */}
       <nav className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-8 py-6">
         <div className="flex items-center gap-3">
-          <Image src="/blossomlogo.png" alt="Blossom Logo" width={36} height={36} />
+          <Image
+            src="/blossomlogo.png"
+            alt="Blossom Logo"
+            width={36}
+            height={36}
+          />
           <span className="text-lg font-semibold text-slate-800">Blossom</span>
         </div>
 
@@ -43,7 +47,9 @@ export default function RegisterPage() {
       {/* MAIN CARD */}
       <div className="relative z-10 flex min-h-[calc(100vh-110px)] items-center justify-center px-6">
         <div className="grid w-full max-w-[1000px] overflow-hidden rounded-3xl bg-white/40 backdrop-blur-2xl shadow-[0_30px_80px_rgba(0,0,0,0.18)] lg:grid-cols-2">
-          <div className="p-14">
+          
+          {/* LEFT */}
+          <div className="flex min-h-[620px] flex-col justify-center p-14">
             <h1 className="text-4xl font-extrabold text-slate-800">
               Create your account <span>🌸</span>
             </h1>
@@ -53,8 +59,9 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          {/* RIGHT */}
           <div className="flex items-center justify-center bg-pink-200/40 p-6">
-            <div className="relative h-[620px] w-[620px] overflow-hidden rounded-3xl shadow-xl">
+            <div className="relative h-[620px] w-full overflow-hidden rounded-3xl shadow-xl">
               <Image
                 src="/image4.jpg"
                 alt="Flower bouquet"
@@ -64,6 +71,7 @@ export default function RegisterPage() {
               />
             </div>
           </div>
+
         </div>
       </div>
     </div>

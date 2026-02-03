@@ -1,49 +1,110 @@
 "use server";
-import { login, register } from "@/lib/api/auth"
-import { LoginData, RegisterData } from "@/app/(auth)/schema"
-import { setAuthToken, setUserData, clearAuthCookies } from "../cookie"
-import { redirect } from "next/navigation";
-export const handleRegister = async (data: RegisterData) => {
-    try {
-        const response = await register(data)
-        if (response.success) {
-            return {
-                success: true,
-                message: 'Registration successful',
-                data: response.data
-            }
-        }
-        return {
-            success: false,
-            message: response.message || 'Registration failed'
-        }
-    } catch (error: Error | any) {
-        return { success: false, message: error.message || 'Registration action failed' }
-    }
+
+import { RegisterData, LoginData } from "@/app/(auth)/schema";
+import { setAuthToken, setUserData } from "@/lib/cookie";
+
+const BACKEND_URL = process.env.BACKEND_URL || "http://127.0.0.1:5051";
+
+async function safeJson(res: Response) {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
+
+function withTimeout(ms: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { controller, timer };
+}
+
+export const handleRegister = async (data: RegisterData) => {
+  console.log("handleRegister called");
+  console.log("BACKEND_URL =", BACKEND_URL);
+
+  const { controller, timer } = withTimeout(8000);
+
+  try {
+    const { confirmPassword, ...rest } = data;
+
+    const payload = {
+      ...rest,
+      email: (data.email || "").trim().toLowerCase(),
+    };
+
+    const url = `${BACKEND_URL}/api/auth/register`;
+    console.log("REGISTER ->", url);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    const json = await safeJson(res);
+
+    if (!res.ok) {
+      return {
+        success: false,
+        message: json?.message || `Register failed (${res.status})`,
+      };
+    }
+
+    return { success: true, message: "Registered successfully. Please login." };
+  } catch (err: any) {
+    console.error("REGISTER FETCH ERROR:", err?.message || err);
+    return { success: false, message: "Backend not reachable / timeout" };
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 export const handleLogin = async (data: LoginData) => {
-    try {
-        const response = await login(data)
-        if (response.success) {
-            await setAuthToken(response.token)
-            await setUserData(response.data)
-            return {
-                success: true,
-                message: 'Login successful',
-                data: response.data
-            }
-        }
-        return {
-            success: false,
-            message: response.message || 'Login failed'
-        }
-    } catch (error: Error | any) {
-        return { success: false, message: error.message || 'Login action failed' }
-    }
-}
+  console.log("handleLogin called");
+  console.log("BACKEND_URL =", BACKEND_URL);
 
-export const handleLogout = async () => {
-    await clearAuthCookies();
-    return redirect('/login');
-}
+  const { controller, timer } = withTimeout(8000);
+
+  try {
+    const payload = {
+      ...data,
+      email: (data.email || "").trim().toLowerCase(),
+    };
+
+    const url = `${BACKEND_URL}/api/auth/login`;
+    console.log("LOGIN ->", url);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    const json = await safeJson(res);
+
+    if (!res.ok) {
+      return {
+        success: false,
+        message: json?.message || `Login failed (${res.status})`,
+      };
+    }
+
+    if (json?.success && json?.token) {
+      await setAuthToken(json.token);
+      await setUserData(json.data);
+      return { success: true, message: "Login successful", data: json.data };
+    }
+
+    return { success: false, message: json?.message || "Login failed" };
+  } catch (err: any) {
+    console.error("LOGIN FETCH ERROR:", err?.message || err);
+    return { success: false, message: "Backend not reachable / timeout" };
+  } finally {
+    clearTimeout(timer);
+  }
+};

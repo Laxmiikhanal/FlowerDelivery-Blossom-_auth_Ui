@@ -1,7 +1,6 @@
- //list of api routes
 export const API = {
-    AUTH:{
-        LOGIN:'/auth/login',
-        REGISTER:'/auth/register',
-    }
-    }
+  AUTH: {
+    REGISTER: "/api/auth/register",
+    LOGIN: "/api/auth/login",
+  },
+};

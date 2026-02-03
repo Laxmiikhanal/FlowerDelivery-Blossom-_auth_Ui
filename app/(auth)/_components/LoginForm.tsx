@@ -1,110 +1,81 @@
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { LoginData, loginSchema } from "../schema";
+import { useRouter, useSearchParams } from "next/navigation";
 import { handleLogin } from "@/lib/actions/auth-action";
 
 export default function LoginForm() {
   const router = useRouter();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginData>({
-    resolver: zodResolver(loginSchema),
-    mode: "onSubmit",
-  });
+  const params = useSearchParams();
+  const registered = params.get("registered");
 
   const [pending, startTransition] = useTransition();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const submit = async (values: LoginData) => {
+  const onSubmit = () => {
     setError(null);
 
-    // Same style validation as your friend's logic (extra safety)
-    if (!values.email || !values.password) {
-      setError("Please enter email and password");
+    const em = email.trim().toLowerCase();
+    const pw = password;
+
+    if (!em || !pw) {
+      setError("Please enter email and password.");
       return;
     }
 
     startTransition(async () => {
-      const result = await handleLogin({
-        email: values.email,
-        password: values.password,
-      });
+      const result = await handleLogin({ email: em, password: pw });
 
       if (!result?.success) {
         setError(result?.message || "Login failed");
         return;
       }
 
-      // Keep your route (change if your app uses /dashboard)
+      const token = result.data?.token;
+      const user = result.data;
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("userId", user._id);
+      localStorage.setItem("role", user.role || "user");
+
+      document.cookie = `token=${token}; path=/`;
+      document.cookie = `role=${user.role || "user"}; path=/`;
+      document.cookie = `userId=${user._id}; path=/`;
+
       router.push("/home");
       router.refresh();
     });
-
-    console.log("login", values);
   };
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-6 text-left">
-      {/* Error message (logic only, UI style preserved) */}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <div className="space-y-4">
+      {registered && (
+        <p className="text-green-700 text-sm">
+          Registration successful. Please login.
+        </p>
+      )}
 
-      {/* Email */}
-      <div>
-        <label className="text-base font-semibold text-black">Email</label>
-        <input
-          {...register("email")}
-          type="email"
-          autoComplete="email"
-          placeholder="you@example.com"
-          className="mt-2 w-full h-12 rounded-lg bg-[#FFE1BD] px-4 text-base text-black placeholder-black/60 outline-none focus:ring-2 focus:ring-black/20"
-        />
-        {errors.email && (
-          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-        )}
-      </div>
+      {error && <p className="text-red-600 text-sm">{error}</p>}
 
-      {/* Password */}
-      <div>
-        <label className="text-base font-semibold text-black">Password</label>
-        <input
-          {...register("password")}
-          type="password"
-          autoComplete="current-password"
-          placeholder="******"
-          className="mt-2 w-full h-12 rounded-lg bg-[#FFE1BD] px-4 text-base text-black placeholder-black/60 outline-none focus:ring-2 focus:ring-black/20"
-        />
-        {errors.password && (
-          <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-        )}
-      </div>
+      <input
+        type="email"
+        placeholder="Enter your email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
 
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={isSubmitting || pending}
-        className="w-full h-12 mt-4 rounded-full bg-[#E39A3B] text-base font-semibold text-black hover:opacity-90 disabled:opacity-60"
-      >
-        {isSubmitting || pending ? "Logging in..." : "Log in"}
+      <input
+        type="password"
+        placeholder="Enter your password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+
+      <button onClick={onSubmit} disabled={pending}>
+        {pending ? "Logging in..." : "Login"}
       </button>
-
-      {/* Signup Link */}
-      <p className="text-center text-base mt-4 text-black">
-        Don't have an account?{" "}
-        <Link
-          href="/register"
-          className="font-semibold text-orange-500 hover:underline"
-        >
-          Sign up
-        </Link>
-      </p>
-    </form>
+    </div>
   );
 }

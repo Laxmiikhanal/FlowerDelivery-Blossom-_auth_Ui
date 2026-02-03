@@ -12,7 +12,6 @@ export const registerSchema = z
     firstName: z.string().min(2, { message: "Minimum 2 characters" }),
     lastName: z.string().min(2, { message: "Minimum 2 characters" }),
     email: z.string().email({ message: "Enter a valid email" }),
-    username: z.string().min(3, { message: "Minimum 3 characters" }),
     password: z.string().min(6, { message: "Minimum 6 characters" }),
     confirmPassword: z.string().min(6, { message: "Minimum 6 characters" }),
   })

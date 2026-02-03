@@ -1,22 +1,39 @@
-import { LoginData, RegisterData } from "@/app/(auth)/schema"
-import axios from "./axios"
-import { API } from "./endpoints"
+"use client";
 
+import axios from "./axios";
+import { API } from "./endpoints";
+import { LoginData, RegisterData } from "@/app/(auth)/schema";
 
-export const register = async (registerData: RegisterData) => {
-    try {
-        const response = await axios.post(API.AUTH.REGISTER, registerData)
-        return response.data
-    } catch (error: Error | any) {
-        throw new Error(error.response?.data?.message || error.message || 'Registration failed')
-    }
+export async function register(data: RegisterData) {
+  try {
+    const response = await axios.post(API.AUTH.REGISTER, data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      message:
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Registration failed",
+      status: error?.response?.status,
+    };
+  }
 }
 
-export const login = async (loginData: LoginData) => {
-    try {
-        const response = await axios.post(API.AUTH.LOGIN, loginData)
-        return response.data
-    } catch (error: Error | any) {
-        throw new Error(error.response?.data?.message || error.message || 'Login failed')
-    }
+export async function login(data: LoginData) {
+  try {
+    const response = await axios.post(API.AUTH.LOGIN, data);
+    return response.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      message:
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Login failed",
+      status: error?.response?.status,
+    };
+  }
 }
