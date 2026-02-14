@@ -19,9 +19,10 @@ export default function UserProfilePage() {
       return;
     }
 
+    // Sprint says: use FormData even if no image
     const fd = new FormData();
-    if (firstName) fd.append("firstName", firstName);
-    if (lastName) fd.append("lastName", lastName);
+    fd.append("firstName", firstName);
+    fd.append("lastName", lastName);
 
     const res = await fetch(`http://localhost:5050/api/auth/${userId}`, {
       method: "PUT",

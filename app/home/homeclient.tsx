@@ -1,39 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import { updateProfile } from "@/lib/actions/profile-action";
 import { getCurrentUser } from "@/lib/actions/user-action";
 import { logout as logoutAction } from "@/lib/actions/logout-action";
 
-function CardImage({
-  src,
-  alt,
-  variant = "square",
-}: {
-  src: string;
-  alt: string;
-  variant?: "square" | "wide";
-}) {
-  return (
-    <div
-      className={`relative w-full overflow-hidden rounded-2xl bg-gray-200 ${
-        variant === "wide" ? "aspect-[4/3]" : "aspect-square"
-      }`}
-    >
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        className="object-cover"
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        priority={variant === "wide"}
-      />
-    </div>
-  );
-}
+import ProductCard from "@/app/_components/ProductCard";
+import { specialOffers, freshFlowers, premiumBouquets } from "@/lib/products";
+import { useCart } from "@/context/CartContext";
 
 function ProfileIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
@@ -53,86 +31,154 @@ function ProfileIcon({ className = "w-6 h-6" }: { className?: string }) {
   );
 }
 
-interface UserData {
+type UserData = {
   _id: string;
   firstName: string;
   lastName: string;
   email: string;
   role: string;
+};
+
+function getCookie(name: string) {
+  if (typeof document === "undefined") return null;
+  const cookies = document.cookie.split(";").map((c) => c.trim());
+  const found = cookies.find((c) => c.startsWith(`${name}=`));
+  if (!found) return null;
+  return found.split("=").slice(1).join("=");
+}
+
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${
+    60 * 60 * 24
+  }`;
+}
+
+function clearCookie(name: string) {
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }
 
 export default function HomeClient() {
   const router = useRouter();
+  const { totalItems } = useCart();
+
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+
   const [userData, setUserData] = useState<UserData | null>(null);
+
   const [profileData, setProfileData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
   });
+
   const [updateMessage, setUpdateMessage] = useState("");
   const [updating, setUpdating] = useState(false);
 
+  // ✅ Load user
   useEffect(() => {
-    const loadUserData = async () => {
+    const loadUser = async () => {
+      // 1) Try server action (if it uses cookies)
       try {
-        const serverUserData = await getCurrentUser();
+        const serverUser = await getCurrentUser();
+        if (serverUser?._id) {
+          const normalized: UserData = {
+            _id: serverUser._id,
+            firstName: serverUser.firstName || "",
+            lastName: serverUser.lastName || "",
+            email: serverUser.email || "",
+            role: serverUser.role || "user",
+          };
 
-        if (serverUserData) {
-          setUserData(serverUserData);
+          setUserData(normalized);
           setProfileData({
-            firstName: serverUserData.firstName || "",
-            lastName: serverUserData.lastName || "",
-            email: serverUserData.email || "",
+            firstName: normalized.firstName,
+            lastName: normalized.lastName,
+            email: normalized.email,
             password: "",
           });
-        } else {
-          const cookies = document.cookie.split(";");
-          let userDataCookie = cookies.find((c) =>
-            c.trim().startsWith("user_data=")
-          );
 
-          if (!userDataCookie) {
-            userDataCookie = cookies.find((c) =>
-              c.trim().startsWith("userData=")
-            );
-          }
+          setCookie("userData", JSON.stringify(normalized));
+          return;
+        }
+      } catch (e) {
+        // ignore and fallback
+      }
 
-          if (userDataCookie) {
-            const data = JSON.parse(
-              decodeURIComponent(userDataCookie.split("=")[1])
-            );
-            setUserData(data);
+      // 2) Try cookie userData
+      try {
+        const raw = getCookie("userData");
+        if (raw) {
+          const decoded = decodeURIComponent(raw);
+          const parsed = JSON.parse(decoded) as UserData;
+
+          if (parsed?._id) {
+            setUserData(parsed);
             setProfileData({
-              firstName: data.firstName || "",
-              lastName: data.lastName || "",
-              email: data.email || "",
+              firstName: parsed.firstName || "",
+              lastName: parsed.lastName || "",
+              email: parsed.email || "",
               password: "",
             });
+            return;
           }
         }
-      } catch (error) {
-        console.error("Failed to load user data:", error);
+      } catch (e) {
+        // ignore and fallback
+      }
+
+      // 3) Try localStorage
+      try {
+        const id = localStorage.getItem("userId");
+        const role = localStorage.getItem("role");
+        const token = localStorage.getItem("token");
+
+        if (!token || !id) {
+          router.push("/login");
+          return;
+        }
+
+        const minimal: UserData = {
+          _id: id,
+          firstName: "",
+          lastName: "",
+          email: "",
+          role: role || "user",
+        };
+
+        setUserData(minimal);
+        setProfileData({
+          firstName: "",
+          lastName: "",
+          email: "",
+          password: "",
+        });
+
+        setCookie("userData", JSON.stringify(minimal));
+        return;
+      } catch (e) {
+        router.push("/login");
       }
     };
 
-    loadUserData();
-  }, []);
+    loadUser();
+  }, [router]);
 
+  // ✅ Profile update submit
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userData?._id) return;
+
     setUpdating(true);
     setUpdateMessage("");
 
     const updateData: any = {};
-    if (profileData.firstName !== userData?.firstName)
+    if (profileData.firstName !== userData.firstName)
       updateData.firstName = profileData.firstName;
-    if (profileData.lastName !== userData?.lastName)
+    if (profileData.lastName !== userData.lastName)
       updateData.lastName = profileData.lastName;
-    if (profileData.email !== userData?.email)
-      updateData.email = profileData.email;
+    if (profileData.email !== userData.email) updateData.email = profileData.email;
     if (profileData.password) updateData.password = profileData.password;
 
     if (Object.keys(updateData).length === 0) {
@@ -143,39 +189,60 @@ export default function HomeClient() {
 
     const result = await updateProfile(updateData);
 
-    if (result.success) {
+    if (result?.success) {
       setUpdateMessage("Profile updated successfully!");
-      if (result.data) {
-        setUserData(result.data);
+
+      if (result.data?._id) {
+        const updated: UserData = {
+          _id: result.data._id,
+          firstName: result.data.firstName || "",
+          lastName: result.data.lastName || "",
+          email: result.data.email || "",
+          role: result.data.role || userData.role || "user",
+        };
+        setUserData(updated);
+        setCookie("userData", JSON.stringify(updated));
+      } else {
+        const updatedLocal: UserData = {
+          ...userData,
+          firstName: updateData.firstName ?? userData.firstName,
+          lastName: updateData.lastName ?? userData.lastName,
+          email: updateData.email ?? userData.email,
+        };
+        setUserData(updatedLocal);
+        setCookie("userData", JSON.stringify(updatedLocal));
       }
-      setProfileData({ ...profileData, password: "" });
+
+      setProfileData((prev) => ({ ...prev, password: "" }));
+
       setTimeout(() => {
         setShowProfileModal(false);
         setUpdateMessage("");
-      }, 1500);
+      }, 1200);
     } else {
-      setUpdateMessage(result.message || "Failed to update profile");
+      setUpdateMessage(result?.message || "Failed to update profile");
     }
 
     setUpdating(false);
   };
 
+  // ✅ Logout
   const handleLogout = async () => {
-    await logoutAction();
+    try {
+      await logoutAction();
+    } catch (e) {}
 
-    document.cookie =
-      "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie =
-      "user_data=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie =
-      "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie =
-      "userData=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    clearCookie("token");
+    clearCookie("role");
+    clearCookie("userId");
+    clearCookie("userData");
+    clearCookie("user_data");
+    clearCookie("auth_token");
 
-    if (typeof window !== "undefined") {
+    try {
       localStorage.clear();
       sessionStorage.clear();
-    }
+    } catch (e) {}
 
     router.push("/login");
     router.refresh();
@@ -183,7 +250,7 @@ export default function HomeClient() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      {/* BEAUTIFUL HEADER */}
+      {/* HEADER */}
       <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-pink-100 sticky top-0 z-40">
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="flex items-center justify-between">
@@ -209,7 +276,7 @@ export default function HomeClient() {
               </div>
             </div>
 
-            {/* Center Navigation - Desktop */}
+            {/* Nav - Desktop */}
             <nav className="hidden md:flex items-center gap-8">
               <Link
                 className="text-pink-500 font-semibold relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-pink-500"
@@ -217,24 +284,34 @@ export default function HomeClient() {
               >
                 Home
               </Link>
+
               <Link
                 className="text-gray-700 hover:text-pink-500 font-medium transition"
                 href="/products"
               >
                 Shop
               </Link>
+
+              {/* Cart with badge */}
               <Link
-                className="text-gray-700 hover:text-pink-500 font-medium transition"
+                className="text-gray-700 hover:text-pink-500 font-medium transition relative"
                 href="/cart"
               >
                 Cart
+                {totalItems > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-2 rounded-full bg-pink-500 text-white text-xs font-bold">
+                    {totalItems}
+                  </span>
+                )}
               </Link>
+
               <Link
                 className="text-gray-700 hover:text-pink-500 font-medium transition"
                 href="/orders"
               >
                 Orders
               </Link>
+
               {userData?.role === "admin" && (
                 <Link
                   className="text-purple-600 hover:text-purple-700 font-semibold transition"
@@ -258,7 +335,7 @@ export default function HomeClient() {
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
 
-              {/* Profile Dropdown */}
+              {/* Profile */}
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
@@ -266,13 +343,11 @@ export default function HomeClient() {
                   type="button"
                   aria-label="Open profile menu"
                 >
-                  {/* ✅ PROFILE ICON (replaces letter) */}
                   <div className="w-full h-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center">
                     <ProfileIcon className="w-6 h-6" />
                   </div>
                 </button>
 
-                {/* Dropdown Menu */}
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50">
                     <div className="px-4 py-3 border-b border-gray-100">
@@ -321,7 +396,7 @@ export default function HomeClient() {
                 )}
               </div>
 
-              {/* Mobile menu button */}
+              {/* Mobile button */}
               <button
                 className="md:hidden p-2 rounded-lg hover:bg-pink-50"
                 onClick={() => setShowMenu(!showMenu)}
@@ -334,7 +409,7 @@ export default function HomeClient() {
         </div>
       </header>
 
-      {/* Profile Edit Modal */}
+      {/* Profile Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -356,7 +431,6 @@ export default function HomeClient() {
 
             <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
               <div className="flex justify-center mb-4">
-                {/* ✅ PROFILE ICON (replaces letter in modal) */}
                 <div className="w-20 h-20 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
                   <ProfileIcon className="w-10 h-10" />
                 </div>
@@ -425,7 +499,7 @@ export default function HomeClient() {
               {updateMessage && (
                 <div
                   className={`p-3 rounded-xl text-sm ${
-                    updateMessage.includes("success")
+                    updateMessage.toLowerCase().includes("success")
                       ? "bg-green-50 text-green-600"
                       : "bg-red-50 text-red-600"
                   }`}
@@ -446,7 +520,6 @@ export default function HomeClient() {
         </div>
       )}
 
-      {/* Click outside to close menu */}
       {showMenu && (
         <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
       )}
@@ -469,11 +542,9 @@ export default function HomeClient() {
         {/* OFFERS */}
         <section className="mt-12">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Special Offers 🎁
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900">Special Offers 🎁</h2>
             <Link
-              href="/offers"
+              href="/products"
               className="text-sm font-semibold text-pink-500 hover:text-pink-600 transition"
             >
               View all →
@@ -481,13 +552,9 @@ export default function HomeClient() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <CardImage src="/flowers.jpg" alt="Offer flowers" variant="wide" />
-            <CardImage
-              src="/sunflowerrrr.jpg"
-              alt="Offer sunflower bouquet"
-              variant="wide"
-            />
-            <CardImage src="/birthday.jpg" alt="Birthday flowers" variant="wide" />
+            {specialOffers.map((p) => (
+              <ProductCard key={p.id} product={p} variant="wide" />
+            ))}
           </div>
         </section>
 
@@ -496,7 +563,7 @@ export default function HomeClient() {
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-900">Fresh Flowers 🌸</h2>
             <Link
-              href="/flowers"
+              href="/products"
               className="text-sm font-semibold text-pink-500 hover:text-pink-600 transition"
             >
               View all →
@@ -504,20 +571,18 @@ export default function HomeClient() {
           </div>
 
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
-            <CardImage src="/whiterose.jpg" alt="White rose" />
-            <CardImage src="/imageflower.jpg" alt="Bouquet wrap flower" />
-            <CardImage src="/flowerholding.jpg" alt="Handheld bouquet" />
+            {freshFlowers.map((p) => (
+              <ProductCard key={p.id} product={p} variant="square" />
+            ))}
           </div>
         </section>
 
         {/* BOUQUETS */}
         <section className="mt-12">
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Premium Bouquets 💐
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900">Premium Bouquets 💐</h2>
             <Link
-              href="/bouquets"
+              href="/products"
               className="text-sm font-semibold text-pink-500 hover:text-pink-600 transition"
             >
               View all →
@@ -525,9 +590,9 @@ export default function HomeClient() {
           </div>
 
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
-            <CardImage src="/pinkbouquet.jpg" alt="Pink bouquet" />
-            <CardImage src="/colorfulflower.jpg" alt="Colorful bouquet" />
-            <CardImage src="/sunflower2.jpg" alt="Sunflower bouquet" />
+            {premiumBouquets.map((p) => (
+              <ProductCard key={p.id} product={p} variant="square" />
+            ))}
           </div>
         </section>
       </main>

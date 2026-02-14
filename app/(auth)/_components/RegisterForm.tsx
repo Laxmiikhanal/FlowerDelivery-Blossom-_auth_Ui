@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { handleRegister } from "@/lib/actions/auth-action";
 
 export default function RegisterForm() {
@@ -16,7 +17,8 @@ export default function RegisterForm() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const onSubmit = () => {
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
 
     const fn = firstName.trim();
@@ -29,7 +31,6 @@ export default function RegisterForm() {
       setError("All fields are required");
       return;
     }
-
     if (pw !== cpw) {
       setError("Passwords do not match");
       return;
@@ -50,7 +51,6 @@ export default function RegisterForm() {
           return;
         }
 
-        // ✅ Best: navigate without refresh (refresh can keep pending feeling stuck)
         router.replace("/login?registered=1");
       } catch (e: any) {
         setError(e?.message || "Something went wrong");
@@ -58,24 +58,33 @@ export default function RegisterForm() {
     });
   };
 
+  const inputClass =
+    "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-pink-400";
+
   return (
-    <div className="space-y-4">
-      {error && <p className="text-red-600 text-sm">{error}</p>}
+    <form onSubmit={onSubmit} className="space-y-4">
+      {error && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 border border-red-100">
+          {error}
+        </div>
+      )}
 
       <input
         type="text"
-        placeholder="First Name"
+        placeholder="First name"
         value={firstName}
         onChange={(e) => setFirstName(e.target.value)}
-        className="w-full rounded-xl bg-white/80 px-5 py-4 outline-none focus:ring-2 focus:ring-pink-400"
+        className={inputClass}
+        autoComplete="given-name"
       />
 
       <input
         type="text"
-        placeholder="Last Name"
+        placeholder="Last name"
         value={lastName}
         onChange={(e) => setLastName(e.target.value)}
-        className="w-full rounded-xl bg-white/80 px-5 py-4 outline-none focus:ring-2 focus:ring-pink-400"
+        className={inputClass}
+        autoComplete="family-name"
       />
 
       <input
@@ -83,7 +92,8 @@ export default function RegisterForm() {
         placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="w-full rounded-xl bg-white/80 px-5 py-4 outline-none focus:ring-2 focus:ring-pink-400"
+        className={inputClass}
+        autoComplete="email"
       />
 
       <input
@@ -91,25 +101,33 @@ export default function RegisterForm() {
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="w-full rounded-xl bg-white/80 px-5 py-4 outline-none focus:ring-2 focus:ring-pink-400"
+        className={inputClass}
+        autoComplete="new-password"
       />
 
       <input
         type="password"
-        placeholder="Confirm Password"
+        placeholder="Confirm password"
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
-        className="w-full rounded-xl bg-white/80 px-5 py-4 outline-none focus:ring-2 focus:ring-pink-400"
+        className={inputClass}
+        autoComplete="new-password"
       />
 
       <button
-        type="button"
-        onClick={onSubmit}
+        type="submit"
         disabled={pending}
-        className="mt-2 w-full rounded-2xl bg-gradient-to-r from-pink-400 to-pink-500 py-4 font-semibold text-white shadow hover:opacity-95 transition disabled:opacity-60"
+        className="mt-2 w-full rounded-2xl bg-gradient-to-r from-pink-500 to-pink-600 py-3 font-semibold text-white shadow hover:opacity-95 transition disabled:opacity-60"
       >
-        {pending ? "Registering..." : "Register"}
+        {pending ? "Registering..." : "Create account"}
       </button>
-    </div>
+
+      <p className="text-center text-sm text-gray-600">
+        Already have an account?{" "}
+        <Link href="/login" className="font-semibold text-pink-600 hover:underline">
+          Login
+        </Link>
+      </p>
+    </form>
   );
 }

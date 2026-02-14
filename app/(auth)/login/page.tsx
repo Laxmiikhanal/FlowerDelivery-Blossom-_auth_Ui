@@ -53,6 +53,16 @@ export default function LoginPage() {
               <LoginForm />
             </div>
 
+            {/* ✅ Forgot password link */}
+            <div className="mt-3 flex justify-end">
+              <Link
+                href="/reset-password"
+                className="text-sm font-semibold text-pink-500 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
             <p className="mt-6 text-sm text-slate-600">
               Don’t have an account?{" "}
               <Link href="/register" className="font-semibold text-pink-500">
@@ -64,7 +74,13 @@ export default function LoginPage() {
           {/* RIGHT IMAGE */}
           <div className="flex items-center justify-center bg-pink-200/40 p-6">
             <div className="relative h-[420px] w-[420px] overflow-hidden rounded-3xl shadow-xl">
-              <Image src="/scooterlady.png" alt="Flower bouquet" fill className="object-cover" priority />
+              <Image
+                src="/scooterlady.png"
+                alt="Flower bouquet"
+                fill
+                className="object-cover"
+                priority
+              />
             </div>
           </div>
         </div>
