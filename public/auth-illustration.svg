@@ -1,0 +1,8 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#fce7f3"/>
+  <circle cx="620" cy="180" r="120" fill="#fbcfe8"/>
+  <circle cx="560" cy="260" r="70" fill="#f9a8d4"/>
+  <circle cx="650" cy="300" r="55" fill="#fda4af"/>
+  <text x="60" y="120" font-family="Arial" font-size="40" fill="#9f1239">Auth</text>
+  <text x="60" y="170" font-family="Arial" font-size="20" fill="#6b7280">Login • Register</text>
+</svg>
