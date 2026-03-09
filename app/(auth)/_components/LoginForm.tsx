@@ -1,110 +1,187 @@
+// "use client";
+
+// import { FormEvent, useState } from "react";
+// import Link from "next/link";
+// import { useRouter } from "next/navigation";
+// import { handleLogin } from "@/lib/actions/auth-action";
+
+// export default function LoginForm() {
+//   const [email, setEmail] = useState("");
+//   const [password, setPassword] = useState("");
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState("");
+//   const router = useRouter();
+
+//   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+//     e.preventDefault();
+//     if (loading) return;
+
+//     setError("");
+//     setLoading(true);
+
+//     const result = await handleLogin({ email, password });
+
+//     if (!result.success) {
+//       setError(result.message || "Login failed");
+//       setLoading(false);
+//       return;
+//     }
+
+//     // Save token & user to localStorage
+//     localStorage.setItem("token", (result as any).data?.token || "");
+//     localStorage.setItem("user", JSON.stringify((result as any).data || {}));
+
+//     // Redirect
+//     const role = ((result as any).data?.role || "").toLowerCase() === "admin" ? "admin" : "user";
+//     router.replace(role === "admin" ? "/admin/dashboard" : "/home");
+//   };
+
+//   return (
+//     <form onSubmit={onSubmit} className="space-y-5">
+//       {error && (
+//         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+//           {error}
+//         </div>
+//       )}
+
+//       <div>
+//         <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
+//         <input
+//           type="email"
+//           value={email}
+//           onChange={(e) => setEmail(e.target.value)}
+//           required
+//           className="w-full rounded-xl border px-4 py-3"
+//         />
+//       </div>
+
+//       <div>
+//         <label className="mb-2 block text-sm font-semibold text-slate-700">Password</label>
+//         <input
+//           type="password"
+//           value={password}
+//           onChange={(e) => setPassword(e.target.value)}
+//           required
+//           className="w-full rounded-xl border px-4 py-3"
+//         />
+//       </div>
+
+//       <div className="flex justify-end">
+//         <Link href="/reset-password" className="text-sm text-pink-600 hover:underline">
+//           Forgot Password?
+//         </Link>
+//       </div>
+
+//       <button
+//         type="submit"
+//         disabled={loading}
+//         className="w-full rounded-xl bg-pink-600 py-3 font-semibold text-white"
+//       >
+//         {loading ? "Signing in..." : "Sign In"}
+//       </button>
+//     </form>
+//   );
+// }
+
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LoginData, loginSchema } from "../schema";
 import { handleLogin } from "@/lib/actions/auth-action";
 
 export default function LoginForm() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginData>({
-    resolver: zodResolver(loginSchema),
-    mode: "onSubmit",
-  });
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (loading) return;
 
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+    setError("");
+    setLoading(true);
 
-  const submit = async (values: LoginData) => {
-    setError(null);
+    try {
+      const result = await handleLogin({ email, password });
 
-    // Same style validation as your friend's logic (extra safety)
-    if (!values.email || !values.password) {
-      setError("Please enter email and password");
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await handleLogin({
-        email: values.email,
-        password: values.password,
-      });
-
-      if (!result?.success) {
-        setError(result?.message || "Login failed");
+      if (!result.success) {
+        setError(result.message || "Login failed");
+        setLoading(false);
         return;
       }
 
-      // Keep your route (change if your app uses /dashboard)
-      router.push("/home");
-      router.refresh();
-    });
+      // ✅ FIX: Extract token properly matching your backend response
+      const token = (result as any).token || (result as any).data?.token || "";
+      const user = (result as any).user || (result as any).data?.user || {};
 
-    console.log("login", values);
+      if (!token) {
+        setError("Login successful, but no token received.");
+        setLoading(false);
+        return;
+      }
+
+      // Save token & user to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+        console.log("✅ Token successfully saved to localStorage");
+      }
+
+      // Redirect based on role
+      const role = (user?.role || "").toLowerCase() === "admin" ? "admin" : "user";
+      router.replace(role === "admin" ? "/admin/dashboard" : "/home");
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred");
+      setLoading(false);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-6 text-left">
-      {/* Error message (logic only, UI style preserved) */}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <form onSubmit={onSubmit} className="space-y-5">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
-      {/* Email */}
       <div>
-        <label className="text-base font-semibold text-black">Email</label>
+        <label className="mb-2 block text-sm font-semibold text-slate-700">Email</label>
         <input
-          {...register("email")}
           type="email"
-          autoComplete="email"
-          placeholder="you@example.com"
-          className="mt-2 w-full h-12 rounded-lg bg-[#FFE1BD] px-4 text-base text-black placeholder-black/60 outline-none focus:ring-2 focus:ring-black/20"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className="w-full rounded-xl border px-4 py-3"
         />
-        {errors.email && (
-          <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-        )}
       </div>
 
-      {/* Password */}
       <div>
-        <label className="text-base font-semibold text-black">Password</label>
+        <label className="mb-2 block text-sm font-semibold text-slate-700">Password</label>
         <input
-          {...register("password")}
           type="password"
-          autoComplete="current-password"
-          placeholder="******"
-          className="mt-2 w-full h-12 rounded-lg bg-[#FFE1BD] px-4 text-base text-black placeholder-black/60 outline-none focus:ring-2 focus:ring-black/20"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="w-full rounded-xl border px-4 py-3"
         />
-        {errors.password && (
-          <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-        )}
       </div>
 
-      {/* Submit Button */}
+      <div className="flex justify-end">
+        <Link href="/reset-password" className="text-sm text-pink-600 hover:underline">
+          Forgot Password?
+        </Link>
+      </div>
+
       <button
         type="submit"
-        disabled={isSubmitting || pending}
-        className="w-full h-12 mt-4 rounded-full bg-[#E39A3B] text-base font-semibold text-black hover:opacity-90 disabled:opacity-60"
+        disabled={loading}
+        className="w-full rounded-xl bg-pink-600 py-3 font-semibold text-white disabled:opacity-50"
       >
-        {isSubmitting || pending ? "Logging in..." : "Log in"}
+        {loading ? "Signing in..." : "Sign In"}
       </button>
-
-      {/* Signup Link */}
-      <p className="text-center text-base mt-4 text-black">
-        Don't have an account?{" "}
-        <Link
-          href="/register"
-          className="font-semibold text-orange-500 hover:underline"
-        >
-          Sign up
-        </Link>
-      </p>
     </form>
   );
 }
